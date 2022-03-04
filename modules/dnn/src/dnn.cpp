@@ -2424,6 +2424,7 @@ struct Net::Impl : public detail::NetImplBase
         for (it = layers.begin(); it != layers.end(); ++it)
         {
             LayerData &ld = it->second;
+            // std::cout<<"layer name: "<<ld.name<<std::endl;
             if (ld.id == 0)
             {
                 CV_Assert((netInputLayer->outNames.empty() && ld.outputBlobsWrappers.size() == 1) ||
@@ -2434,6 +2435,7 @@ struct Net::Impl : public detail::NetImplBase
                     std::string outputName = netInputLayer->outNames.empty() ? ld.name : netInputLayer->outNames[i];
                     outputName = ld.outputBlobsWrappers.size() > 1 ? (outputName + "." + std::to_string(i)) : outputName;
                     wrapper->name = outputName;
+                    // std::cout<<"wrapper->name: "<<wrapper->name<<std::endl;
                 }
             }
             else
@@ -2443,6 +2445,7 @@ struct Net::Impl : public detail::NetImplBase
                     Ptr<WebnnBackendWrapper> wrapper = ld.outputBlobsWrappers[i].dynamicCast<WebnnBackendWrapper>();
                     std::string outputName = ld.outputBlobsWrappers.size() > 1 ? (ld.name + "." + std::to_string(i)) : ld.name;
                     wrapper->name = outputName;
+                    // std::cout<<"wrapper->name: "<<wrapper->name<<std::endl;
                 }
             }
         }
@@ -2453,11 +2456,15 @@ struct Net::Impl : public detail::NetImplBase
         for (it = layers.begin(); it != layers.end(); ++it)
         {
             LayerData &ld = it->second;
-
+            // std::cout<<"begin initialize layer "<<ld.name<<"--------------"<<std::endl;
             if (ld.id == 0 && ld.skip)
+            {
+                // std::cout<<"finish initialize layer "<<ld.name<<" because of ld.skip==true"<<std::endl;
                 continue;
+            }
 
             bool fused = ld.skip;
+            // std::cout<<"fused: "<<fused<<std::endl;
             Ptr<Layer> layer = ld.layerInstance;
             if (!fused && !layer->supportBackend(preferableBackend))
             {
@@ -2479,10 +2486,10 @@ struct Net::Impl : public detail::NetImplBase
                         webnnNode->net->setUnconnectedNodes(webnnNode);
                     }
                 }
+                // std::cout<<"finish initialize layer "<<ld.name<<" because of unsupported layer"<<std::endl;
                 continue;
             }
             ld.skip = true; // Initially skip all WebNN supported layers.
-
             // Create a new network if one of inputs from different WebNN graph.
             std::vector<Ptr<BackendNode>> inputNodes;
             for (int i = 0; i < ld.inputBlobsId.size(); ++i)
@@ -2492,18 +2499,22 @@ struct Net::Impl : public detail::NetImplBase
                     break;
                 }
                 LayerData &inpLd = layers[ld.inputBlobsId[i].lid];
+                // std::cout<<"    "<<"inpLd.name: "<<inpLd.name<<std::endl;
                 Ptr<BackendNode> inpNode = inpLd.backendNodes[preferableBackend];
                 if (!inpNode.empty())
                 {
+                    // std::cout<<"    "<<"webnnNode yes!"<<std::endl;
                      Ptr<WebnnBackendNode> webnnInpNode = inpNode.dynamicCast<WebnnBackendNode>();
                      CV_Assert(!webnnInpNode.empty()); CV_Assert(!webnnInpNode->net.empty());
                      if (webnnInpNode->net == net && !fused) {
+                        // std::cout<<"    same graph"<<std::endl;
                         inputNodes.push_back(inpNode);
                         continue;
                      }
                 }
 
                 if (net.empty()) {
+                    // std::cout<<"    create new WebnnNet"<<std::endl;
                     net = Ptr<WebnnNet>(new WebnnNet());
                 }
 
@@ -2520,9 +2531,12 @@ struct Net::Impl : public detail::NetImplBase
                         Ptr<WebnnBackendWrapper> inpWrapper = inpLd.outputBlobsWrappers[cons_inp].
                                                                      dynamicCast<WebnnBackendWrapper>();
                         CV_Assert(!inpWrapper.empty());
+                        // std::cout<<"inpWrapper->name: "<<inpWrapper->name<<std::endl;
                         auto iter = std::find(inputNames.begin(), inputNames.end(),
                                               inpWrapper->name);
+                        // std::cout<<"inpWrapper->name: "<<inpWrapper->name<<std::endl;
                         if (iter == inputNames.end()) {
+                            // std::cout<<"inpWrapper->name push back: "<<inpWrapper->name<<std::endl;
                             inputNames.push_back(inpWrapper->name);
                             inputs.push_back(inpLd.outputBlobs[cons_inp]);
                         }
@@ -2530,6 +2544,8 @@ struct Net::Impl : public detail::NetImplBase
                     }
 
                     auto inps = net->setInputs(inputs, inputNames);
+                    // std::cout<<"inputNames: "<<inputNames<<std::endl;
+                    // std::cout<<"end--------------------"<<std::endl;
                     for (auto& inp : inps) {
                         WebnnBackendNode* node = new WebnnBackendNode(inp);
                         node->net = net;
@@ -2612,6 +2628,7 @@ struct Net::Impl : public detail::NetImplBase
             net->addBlobs(ld.inputBlobsWrappers);
             net->addBlobs(ld.outputBlobsWrappers);
             addWebnnOutputs(ld);
+            // std::cout<<"finish initialize layer "<<ld.name<<"---------------"<<std::endl;
         }
 
         // Initialize all networks.

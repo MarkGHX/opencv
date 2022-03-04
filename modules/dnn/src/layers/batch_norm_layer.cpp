@@ -429,18 +429,17 @@ public:
         Ptr<WebnnBackendNode> node = nodes[0].dynamicCast<WebnnBackendNode>();
         auto& webnnInpOperand = node->operand;
         auto& webnnGraphBuilder = node->net->builder;
-        std::vector<int32_t> weights_shape = webnn::getShape(weights_);
-        ml::Operand weights = webnn::BuildConstant(webnnGraphBuilder, weights_shape, weights_.data, weights_.total()*weights_.elemSize(), ml::OperandType::Float32);
         std::vector<int32_t> shape(dims, 1);
-        shape[1] = weights_shape[1];
+        shape[1] = weights_.total();
+        // ml::Operand weights = webnn::BuildConstant(webnnGraphBuilder, shape, weights_.data, weights_.total()*weights_.elemSize(), ml::OperandType::Float32);
+        ml::Operand weights = webnn::BuildConstant(webnnGraphBuilder, webnn::getShape(weights_), weights_.data, weights_.total()*weights_.elemSize(), ml::OperandType::Float32);
         ml::Operand weights_reshaped = webnnGraphBuilder.Reshape(weights, shape.data(), shape.size());
-        ml::Operand mul_res = webnnGraphBuilder.Mul(webnnInpOperand, weights_reshaped);
-        std::vector<int32_t> bias_shape = webnn::getShape(bias_);
-        ml::Operand bias = webnn::BuildConstant(webnnGraphBuilder, bias_shape, bias_.data, bias_.total()*bias_.elemSize(), ml::OperandType::Float32);
-        shape[1] = bias_shape[1];
+        // ml::Operand bias = webnn::BuildConstant(webnnGraphBuilder, shape, bias_.data, bias_.total()*bias_.elemSize(), ml::OperandType::Float32);
+        ml::Operand bias = webnn::BuildConstant(webnnGraphBuilder, webnn::getShape(bias_), bias_.data, bias_.total()*bias_.elemSize(), ml::OperandType::Float32);
         ml::Operand bias_reshaped = webnnGraphBuilder.Reshape(bias, shape.data(), shape.size());
-        ml::Operand add_res = webnnGraphBuilder.Add(mul_res, bias_reshaped);
-        return Ptr<BackendNode>(new WebnnBackendNode(add_res));
+        // ml::Operand result = webnnGraphBuilder.Add(webnnGraphBuilder.Mul(webnnInpOperand, weights), bias);
+        ml::Operand result = webnnGraphBuilder.Add(webnnGraphBuilder.Mul(webnnInpOperand, weights_reshaped), bias_reshaped);
+        return Ptr<BackendNode>(new WebnnBackendNode(result));
     }
 #endif
 

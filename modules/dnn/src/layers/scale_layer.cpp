@@ -54,6 +54,7 @@ public:
         outputs.assign(1, inputs[0]);
 #ifdef HAVE_WEBNN
         dims = inputs[0].size();
+        // std::cout<<"inputs[0].dims: "<<inputs[0]<<std::endl;
         numChannels = 1;
         if (inputs.size() > 1)
         {
@@ -397,14 +398,20 @@ public:
         auto& webnnInpOperand0 = node->operand;
         auto& webnnGraphBuilder = node->net->builder;
         auto webnnInpOperand1 = nodes.size() > 1 ? nodes[1].dynamicCast<WebnnBackendNode>()->operand : nullptr;
-        auto webnnInpOperand2 = nodes.size() > 2 ? nodes[1].dynamicCast<WebnnBackendNode>()->operand : nullptr;
+        // auto webnnInpOperand2 = nodes.size() > 2 ? nodes[2].dynamicCast<WebnnBackendNode>()->operand : nullptr;
         std::vector<int32_t> shape(dims, 1);
 
         size_t channels = 1;
         if (blobs.empty())
+        {
             channels = numChannels;
+            // std::cout<<"numChannels: "<<numChannels<<std::endl;
+        }
         else
+        {
             channels = blobs[0].total();
+            // std::cout<<"numChannels: "<<numChannels<<" channels: "<<channels<<std::endl;
+        }
 
         int cAxis = normalize_axis(axis, shape.size());
         shape[cAxis] = channels;
@@ -413,18 +420,21 @@ public:
         if (hasWeights)
         {
             ml::Operand webnnWeights = blobs.empty() ? webnnInpOperand1 : webnn::BuildConstant(webnnGraphBuilder, webnn::getShape(blobs[0]), blobs[0].data, blobs[0].total()*blobs[0].elemSize(), ml::OperandType::Float32);
+            // std::cout<<"blobs[0] shape: "<<webnn::getShape(blobs[0])<<"  shape shape: "<<shape<<std::endl;
             webnnWeights = webnnGraphBuilder.Reshape(webnnWeights, shape.data(), shape.size());
             operand = webnnGraphBuilder.Mul(operand, webnnWeights);
         }
-        if (hasBias)
+        if (hasBias || !hasWeights)
         {
             ml::Operand webnnBias;
-            if(!hasWeights)
+            if(hasBias)
+            {
                 webnnBias = blobs.empty() ? webnnInpOperand1 : webnn::BuildConstant(webnnGraphBuilder, webnn::getShape(blobs.back()), blobs.back().data, blobs.back().total()*blobs.back().elemSize(), ml::OperandType::Float32);
-            else
-                webnnBias = blobs.empty() ? webnnInpOperand2 : webnn::BuildConstant(webnnGraphBuilder, webnn::getShape(blobs.back()), blobs.back().data, blobs.back().total()*blobs.back().elemSize(), ml::OperandType::Float32);
-            webnnBias = webnnGraphBuilder.Reshape(webnnBias, shape.data(), shape.size());
-            operand = webnnGraphBuilder.Add(operand, webnnBias);
+                webnnBias = webnnGraphBuilder.Reshape(webnnBias, shape.data(), shape.size());
+                operand = webnnGraphBuilder.Add(operand, webnnBias);
+            }
+            // else
+                // webnnBias = blobs.empty() ? webnnInpOperand2 : webnn::BuildConstant(webnnGraphBuilder, webnn::getShape(blobs.back()), blobs.back().data, blobs.back().total()*blobs.back().elemSize(), ml::OperandType::Float32);
         }
 
         return Ptr<BackendNode>(new WebnnBackendNode(operand));

@@ -356,15 +356,15 @@ public:
             return ksize == 2;
 #endif
 #ifdef HAVE_WEBNN
-        if (backendId == DNN_BACKEND_WEBNN)
+    if (backendId == DNN_BACKEND_WEBNN)
+    {
+        if (ksize != 2)
         {
-            if (ksize != 2)
-            {
-                CV_LOG_WARNING(NULL, "WebNN only supports Conv2d.");
-                return false;
-            }
-            return true;
+            CV_LOG_WARNING(NULL, "WebNN only supports Conv2d.");
+            return false;
         }
+        return true;
+    }
 #endif
         return false;
     }

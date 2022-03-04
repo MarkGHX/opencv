@@ -260,7 +260,7 @@ public:
                 {
                     if (!ceilMode)
                     {
-                        CV_LOG_WARNING(NULL, "ceilMode is not supported by WebNN backend.");
+                        CV_LOG_WARNING(NULL, "FLOOR Mode is not supported by WebNN backend.");
                         return false;
                     }
                     if (computeMaxIdx)

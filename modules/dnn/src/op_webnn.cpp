@@ -117,12 +117,14 @@ std::vector<ml::Operand> WebnnNet::setInputs(const std::vector<cv::Mat>& inputs,
         ml::Operand inputOperand = builder.Input(names[i].c_str(), &descriptor);
         current_inp.push_back(std::move(inputOperand));
     }
-    inputNames = names;
+    for (size_t i = 0; i < names.size(); i++)
+        inputNames.emplace_back(names[i]);
     return current_inp;
 }
 
 void WebnnNet::setUnconnectedNodes(Ptr<WebnnBackendNode>& node) {
     outputNames.push_back(node->name);
+    // std::cout<<"node->name: "<<node->name<<std::endl; 
     namedOperands.Set(outputNames.back().c_str(), node->operand);
 }
 
@@ -153,8 +155,11 @@ void WebnnNet::forward(const std::vector<Ptr<BackendWrapper> >& outBlobsWrappers
     CV_LOG_DEBUG(NULL, "WebnnNet::forward(" << (isAsync ? "async" : "sync") << ")");
     ml::NamedInputs named_inputs = ::ml::CreateNamedInputs();
     std::vector<ml::Input> inputs(inputNames.size());
+    // std::cout<<"begin compute---------------------"<<std::endl;
+    // std::cout<<"inputNames.size(): "<<inputNames.size()<<std::endl;
     for (int i = 0; i < inputNames.size(); ++i) {
         const std::string& name = inputNames[i];
+        // std::cout<<"name_input: "<<name<<std::endl;
         ml::Input& input = inputs[i];
         auto blobIt = allBlobs.find(name);
         CV_Assert(blobIt != allBlobs.end());
@@ -168,6 +173,7 @@ void WebnnNet::forward(const std::vector<Ptr<BackendWrapper> >& outBlobsWrappers
     std::vector<ml::ArrayBufferView> outputs(outs.size());
     for (int i = 0; i < outs.size(); ++i) {
         const std::string& name = outs[i]->name;
+        // std::cout<<"name_output: "<<name<<std::endl;
         ml::ArrayBufferView& output = outputs[i];
         output.buffer = outs[i]->host->data;
         // std::cout<<"host data size: "<<outs[i]->host->total()*outs[i]->host->elemSize()<<std::endl;
@@ -179,6 +185,7 @@ void WebnnNet::forward(const std::vector<Ptr<BackendWrapper> >& outBlobsWrappers
     if (status != ::ml::ComputeGraphStatus::Success) {
         CV_Error(Error::StsAssert, format("Failed to compute: %d", int(status)));
     }
+    // std::cout<<"end compute----------------------"<<std::endl;
 }
 
 // WebnnBackendNode
